@@ -1,21 +1,57 @@
 const Task =
   require("../models/Task");
 
+const jwt =
+  require("jsonwebtoken");
+
+const getUserId = (req) => {
+
+  const token =
+    req.headers.authorization?.split(" ")[1];
+
+  if (!token) return null;
+
+  const decoded =
+    jwt.verify(
+
+      token,
+
+      process.env.JWT_SECRET
+
+    );
+
+  return decoded.id;
+
+};
+
 const getTasks =
   async (req, res) => {
 
     try {
 
+      const userId =
+        getUserId(req);
+
       const tasks =
-        await Task.find();
+        await Task.find({
+
+          userId,
+
+        }).sort({
+
+          createdAt: -1,
+
+        });
 
       res.json(tasks);
 
     } catch (error) {
 
       res.status(500).json({
+
         message:
           "Failed to fetch tasks",
+
       });
 
     }
@@ -27,11 +63,19 @@ const createTask =
 
     try {
 
+      const userId =
+        getUserId(req);
+
       const {
+
         title,
+
         dueDate,
-        assignedTo,
+
         priority,
+
+        status,
+
       } = req.body;
 
       const task =
@@ -41,11 +85,11 @@ const createTask =
 
           dueDate,
 
-          assignedTo,
-
           priority,
 
-          status: "Pending",
+          status,
+
+          userId,
 
         });
 
@@ -54,8 +98,10 @@ const createTask =
     } catch (error) {
 
       res.status(500).json({
+
         message:
           "Task creation failed",
+
       });
 
     }
@@ -83,8 +129,10 @@ const updateTask =
     } catch (error) {
 
       res.status(500).json({
+
         message:
           "Task update failed",
+
       });
 
     }
@@ -101,15 +149,19 @@ const deleteTask =
       );
 
       res.json({
+
         message:
           "Task deleted",
+
       });
 
     } catch (error) {
 
       res.status(500).json({
+
         message:
           "Task deletion failed",
+
       });
 
     }

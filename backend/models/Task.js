@@ -2,50 +2,58 @@ const mongoose =
   require("mongoose");
 
 const taskSchema =
-  new mongoose.Schema(
+  new mongoose.Schema({
 
-    {
+    title: {
 
-      title: String,
+      type: String,
 
-      dueDate: String,
-
-      assignedTo: String,
-
-      priority: {
-
-        type: String,
-
-        default: "Medium",
-
-      },
-
-      status: {
-
-        type: String,
-
-        default: "Pending",
-
-      },
-
-      user: {
-
-        type:
-          mongoose.Schema.Types.ObjectId,
-
-        ref: "User",
-
-      },
+      required: true,
 
     },
 
-    {
+    status: {
 
-      timestamps: true,
+      type: String,
 
-    }
+      default: "Pending",
 
-  );
+    },
+
+    priority: {
+
+      type: String,
+
+      default: "Medium",
+
+    },
+
+    dueDate: {
+
+      type: Date,
+
+    },
+
+    createdAt: {
+
+      type: Date,
+
+      default: Date.now,
+
+    },
+
+    userId: {
+
+      type:
+        mongoose.Schema.Types.ObjectId,
+
+      ref: "User",
+
+      required: true,
+
+    },
+
+  });
 
 module.exports =
   mongoose.model(
