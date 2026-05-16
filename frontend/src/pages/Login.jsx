@@ -1,12 +1,19 @@
-import { useState } from "react";
+import {
+  useState
+} from "react";
 
-import { useNavigate } from "react-router-dom";
+import {
+  useNavigate
+} from "react-router-dom";
 
-import { loginUser } from "../services/authService";
+import {
+  loginUser
+} from "../services/authService";
 
 function Login() {
 
-  const navigate = useNavigate();
+  const navigate =
+    useNavigate();
 
   const [email, setEmail] =
     useState("");
@@ -15,30 +22,36 @@ function Login() {
     useState("");
 
   const handleLogin =
-    async () => {
+    async (e) => {
+
+      e.preventDefault();
 
       try {
 
         const response =
           await loginUser({
+
             email,
+
             password,
+
           });
 
         localStorage.setItem(
-          "token",
-          response.data.token
-        );
 
-        alert("Login Successful");
+          "token",
+
+          response.data.token
+
+        );
 
         navigate("/dashboard");
 
       } catch (error) {
 
-        console.log(error);
-
-        alert("Invalid Credentials");
+        alert(
+          "Invalid Credentials"
+        );
 
       }
 
@@ -47,29 +60,55 @@ function Login() {
   return (
 
     <div style={{
+
       display: "flex",
+
       justifyContent: "center",
+
       alignItems: "center",
+
       height: "100vh",
-      background: "#f5f7f6"
+
+      background: "#f3f4f6",
+
     }}>
 
-      <div style={{
-        background: "white",
-        padding: "40px",
-        borderRadius: "20px",
-        width: "350px"
-      }}>
+      <form
 
-        <h1 style={{
+        onSubmit={handleLogin}
+
+        style={{
+
+          background: "white",
+
+          padding: "40px",
+
+          borderRadius: "15px",
+
+          width: "350px",
+
+          boxShadow:
+            "0 0 15px rgba(0,0,0,0.1)",
+
+        }}
+      >
+
+        <h2 style={{
+
+          textAlign: "center",
+
           marginBottom: "30px",
-          textAlign: "center"
+
         }}>
+
           Login
-        </h1>
+
+        </h2>
 
         <input
+
           type="email"
+
           placeholder="Email"
 
           value={email}
@@ -78,54 +117,120 @@ function Login() {
             setEmail(e.target.value)
           }
 
+          required
+
           style={{
+
             width: "100%",
+
             padding: "12px",
+
             marginBottom: "20px",
-            borderRadius: "10px",
-            border: "1px solid #ddd",
-            boxSizing: "border-box"
+
+            borderRadius: "8px",
+
+            border:
+              "1px solid #ccc",
+
           }}
         />
 
         <input
+
           type="password"
+
           placeholder="Password"
 
           value={password}
 
           onChange={(e) =>
-            setPassword(e.target.value)
+            setPassword(
+              e.target.value
+            )
           }
 
+          required
+
           style={{
+
             width: "100%",
+
             padding: "12px",
+
             marginBottom: "20px",
-            borderRadius: "10px",
-            border: "1px solid #ddd",
-            boxSizing: "border-box"
+
+            borderRadius: "8px",
+
+            border:
+              "1px solid #ccc",
+
           }}
         />
 
         <button
-          onClick={handleLogin}
+
+          type="submit"
 
           style={{
+
             width: "100%",
+
             padding: "12px",
+
             background: "#16a34a",
+
             color: "white",
+
             border: "none",
-            borderRadius: "10px",
+
+            borderRadius: "8px",
+
             cursor: "pointer",
-            fontWeight: "bold"
+
+            fontWeight: "bold",
+
           }}
         >
+
           Login
+
         </button>
 
-      </div>
+        <p style={{
+
+          marginTop: "15px",
+
+          textAlign: "center",
+
+          color: "gray",
+        }}>
+
+          Don't have an account?
+
+          {" "}
+
+          <a
+
+            href="/register"
+
+            style={{
+
+              color: "#2563eb",
+
+              fontWeight: "bold",
+
+              textDecoration:
+                "none",
+            }}
+          >
+
+            Register
+
+          </a>
+
+        </p>
+
+      </form>
 
     </div>
 
