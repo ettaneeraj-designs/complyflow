@@ -1,28 +1,40 @@
-import { useEffect, useState } from "react";
+import {
+  useState,
+  useEffect,
+  useCallback,
+} from "react";
+
+import axios from "axios";
+
+import { toast } from "react-toastify";
 
 import {
-  useNavigate,
-} from "react-router-dom";
-
-import {
-
   getTasks,
-
-  createTask,
-
-  updateTask,
-
+  createTask as createTaskService,
   deleteTaskById,
-
+  updateTask,
 } from "../services/taskService";
+
+import Sidebar from "../components/Sidebar";
+import Navbar from "../components/Navbar";
+import TaskTable from "../components/TaskTable";
+import TaskForm from "../components/TaskForm";
+import AnalyticsChart from "../components/AnalyticsChart";
+import UploadSection from "../components/UploadSection";
+import StatsCards from "../components/StatsCards";
+import ProgressBar from "../components/ProgressBar";
+import RecentActivity from "../components/RecentActivity";
 
 function Dashboard() {
 
-  const navigate =
-    useNavigate();
-
   const [tasks, setTasks] =
     useState([]);
+
+  const [loading, setLoading] =
+    useState(true);
+
+  const [error, setError] =
+    useState("");
 
   const [title, setTitle] =
     useState("");
@@ -30,114 +42,378 @@ function Dashboard() {
   const [dueDate, setDueDate] =
     useState("");
 
+  const [assignedTo, setAssignedTo] =
+    useState("");
+
   const [priority, setPriority] =
     useState("Medium");
 
-  const [darkMode, setDarkMode] =
+  const [editingTask, setEditingTask] =
+    useState(null);
+
+  const [isEditing, setIsEditing] =
     useState(false);
 
-  const fetchTasks =
+  const [selectedFile, setSelectedFile] =
+    useState(null);
+
+  const [search, setSearch] =
+    useState("");
+
+  const [statusFilter, setStatusFilter] =
+    useState("All");
+
+  const [sortOrder, setSortOrder] =
+    useState("High");
+
+  const [darkMode, setDarkMode] =
+    useState(
+
+      localStorage.getItem(
+        "darkMode"
+      ) === "true"
+
+    );
+
+  const priorityOrder = {
+    High: 3,
+    Medium: 2,
+    Low: 1,
+  };
+
+  const filteredTasks = tasks
+
+    .filter((task) => {
+
+      const matchesSearch =
+
+        task.title
+          .toLowerCase()
+          .includes(
+            search.toLowerCase()
+          );
+
+      const matchesStatus =
+
+        statusFilter === "All"
+
+        ||
+
+        task.status === statusFilter;
+
+      return (
+        matchesSearch &&
+        matchesStatus
+      );
+
+    })
+
+    .sort((a, b) => {
+
+      if (sortOrder === "High") {
+
+        return (
+          priorityOrder[b.priority]
+          -
+          priorityOrder[a.priority]
+        );
+
+      }
+
+      return (
+        priorityOrder[a.priority]
+        -
+        priorityOrder[b.priority]
+      );
+
+    });
+
+  const chartData = [
+    {
+      name: "Completed",
+      value: tasks.filter(
+        (task) =>
+          task.status === "Completed"
+      ).length,
+    },
+
+    {
+      name: "Pending",
+      value: tasks.filter(
+        (task) =>
+          task.status === "Pending"
+      ).length,
+    },
+
+    {
+      name: "In Progress",
+      value: tasks.filter(
+        (task) =>
+          task.status ===
+          "In Progress"
+      ).length,
+    },
+
+    {
+      name: "At Risk",
+      value: tasks.filter(
+        (task) =>
+          task.status === "At Risk"
+      ).length,
+    },
+  ];
+
+  const COLORS = [
+    "green",
+    "orange",
+    "blue",
+    "red",
+  ];
+
+  const fetchTasks = useCallback(
+
     async () => {
 
       try {
+
+        setLoading(true);
+
+        setError("");
 
         const response =
           await getTasks();
 
         setTasks(
-          response.data
+
+          response.data.sort(
+
+            (a, b) =>
+
+              new Date(
+                b.createdAt
+              )
+
+              -
+
+              new Date(
+                a.createdAt
+              )
+
+          )
+
         );
 
       } catch (error) {
 
-        alert(
+        console.log(error);
+
+        setError(
           "Failed to load tasks"
         );
 
+      } finally {
+
+        setLoading(false);
+
       }
 
-    };
+    },
+
+    []
+
+  );
 
   useEffect(() => {
 
     fetchTasks();
 
-  }, []);
+  }, [fetchTasks]);
 
-  const handleCreateTask =
-    async (e) => {
+  useEffect(() => {
 
-      e.preventDefault();
+    localStorage.setItem(
+      "darkMode",
+      darkMode
+    );
 
-      try {
+  }, [darkMode]);
 
-        await createTask({
+  const createTask = async () => {
 
+    try {
+
+      if (isEditing) {
+
+        await updateTask(
+
+          editingTask._id,
+
+          {
+            title,
+            dueDate,
+            assignedTo,
+            priority,
+          }
+
+        );
+
+        toast.success(
+          "Task Updated"
+        );
+
+        setIsEditing(false);
+
+        setEditingTask(null);
+
+      } else {
+
+        await createTaskService({
           title,
-
           dueDate,
-
+          assignedTo,
           priority,
-
-          status: "Pending",
-
         });
 
-        setTitle("");
-        setDueDate("");
-        setPriority("Medium");
-
-        fetchTasks();
-
-      } catch (error) {
-
-        alert(
-          "Task creation failed"
+        toast.success(
+          "Task Created"
         );
 
       }
 
-    };
+      fetchTasks();
 
-  const handleDelete =
-    async (id) => {
+      setTitle("");
 
-      try {
+      setDueDate("");
 
-        await deleteTaskById(id);
+      setAssignedTo("");
 
-        fetchTasks();
+      setPriority("Medium");
 
-      } catch (error) {
+    } catch (error) {
 
-        alert(
-          "Delete failed"
+      console.log(error);
+
+      toast.error(
+        "Operation Failed"
+      );
+
+    }
+
+  };
+
+  const editTask = (task) => {
+
+    setIsEditing(true);
+
+    setEditingTask(task);
+
+    setTitle(task.title);
+
+    setDueDate(task.dueDate);
+
+    setAssignedTo(
+      task.assignedTo
+    );
+
+    setPriority(
+      task.priority || "Medium"
+    );
+
+  };
+
+  const deleteTask = async (id) => {
+
+    try {
+
+      const confirmDelete =
+        window.confirm(
+          "Are you sure you want to delete this task?"
         );
 
-      }
+      if (!confirmDelete) return;
 
-    };
+      await deleteTaskById(id);
 
-  const handleStatusChange =
-    async (id, status) => {
+      fetchTasks();
 
-      try {
+      toast.success(
+        "Task Deleted"
+      );
 
-        await updateTask(id, {
-          status,
-        });
+    } catch (error) {
 
-        fetchTasks();
+      console.log(error);
 
-      } catch (error) {
+      toast.error(
+        "Delete Failed"
+      );
 
-        alert(
-          "Update failed"
-        );
+    }
 
-      }
+  };
 
-    };
+  const updateTaskStatus = async (
+    id,
+    status
+  ) => {
+
+    try {
+
+      await updateTask(id, {
+        status,
+      });
+
+      fetchTasks();
+
+      toast.success(
+        "Status Updated"
+      );
+
+    } catch (error) {
+
+      console.log(error);
+
+      toast.error(
+        "Update Failed"
+      );
+
+    }
+
+  };
+
+  const uploadFile = async () => {
+
+    try {
+
+      const formData =
+        new FormData();
+
+      formData.append(
+        "document",
+        selectedFile
+      );
+
+      await axios.post(
+        `${import.meta.env.VITE_API_URL}/api/upload`,
+        formData
+      );
+
+      toast.success(
+        "File Uploaded"
+      );
+
+    } catch (error) {
+
+      console.log(error);
+
+      toast.error(
+        "Upload Failed"
+      );
+
+    }
+
+  };
 
   const logout = () => {
 
@@ -145,536 +421,169 @@ function Dashboard() {
       "token"
     );
 
-    navigate("/");
+    window.location.href =
+      "/login";
 
   };
 
   return (
 
     <div style={{
+      display: "flex",
+
+      flexDirection:
+        window.innerWidth < 768
+          ? "column"
+          : "row",
 
       minHeight: "100vh",
 
       background:
         darkMode
-          ? "#111827"
-          : "#f3f4f6",
+          ? "#0f172a"
+          : "#f5f7f6",
+
+      fontFamily: "Arial",
 
       color:
         darkMode
-          ? "#f9fafb"
+          ? "#f3f4f6"
           : "#111827",
-
-      padding: "30px",
-
-      transition:
-        "0.3s ease",
-
     }}>
 
-      <div style={{
-
-        display: "flex",
-
-        justifyContent:
-          "space-between",
-
-        alignItems: "center",
-
-        marginBottom: "30px",
-
-      }}>
-
-        <h1 style={{
-
-          color:
-            darkMode
-              ? "#f9fafb"
-              : "#111827",
-
-        }}>
-
-          Welcome to ComplyFlow 🚀
-
-        </h1>
-
-        <div>
-
-          <button
-
-            onClick={() =>
-              setDarkMode(
-                !darkMode
-              )
-            }
-
-            style={{
-
-              marginRight:
-                "15px",
-
-              padding:
-                "10px 15px",
-
-              border: "none",
-
-              borderRadius:
-                "8px",
-
-              cursor: "pointer",
-
-              background:
-                darkMode
-                  ? "#374151"
-                  : "#d1d5db",
-
-              color:
-                darkMode
-                  ? "white"
-                  : "black",
-
-            }}
-          >
-
-            {darkMode
-              ? "Light Mode"
-              : "Dark Mode"}
-
-          </button>
-
-          <button
-
-            onClick={logout}
-
-            style={{
-
-              padding:
-                "10px 15px",
-
-              background:
-                "#dc2626",
-
-              color: "white",
-
-              border: "none",
-
-              borderRadius:
-                "8px",
-
-              cursor: "pointer",
-
-            }}
-          >
-
-            Logout
-
-          </button>
-
-        </div>
-
-      </div>
+      <Sidebar tasks={tasks} />
 
       <div style={{
-
-        background:
-          darkMode
-            ? "#1f2937"
-            : "white",
-
-        padding: "25px",
-
-        borderRadius:
-          "15px",
-
-        marginBottom:
-          "30px",
-
-        boxShadow:
-          "0 0 10px rgba(0,0,0,0.1)",
-
+        flex: 1,
+        padding: "40px"
       }}>
 
-        <h2 style={{
+        <Navbar
+          tasks={tasks}
 
-          marginBottom:
-            "20px",
+          logout={logout}
 
-          color:
-            darkMode
-              ? "#f9fafb"
-              : "#111827",
+          search={search}
+          setSearch={setSearch}
 
-        }}>
+          statusFilter={statusFilter}
+          setStatusFilter={setStatusFilter}
 
-          Create New Task
+          darkMode={darkMode}
+          setDarkMode={setDarkMode}
 
-        </h2>
+          sortOrder={sortOrder}
+          setSortOrder={setSortOrder}
+        />
 
-        <form
-          onSubmit={
-            handleCreateTask
+        <StatsCards tasks={tasks} />
+
+        <ProgressBar tasks={tasks} />
+
+        <TaskForm
+          title={title}
+          setTitle={setTitle}
+
+          dueDate={dueDate}
+          setDueDate={setDueDate}
+
+          assignedTo={assignedTo}
+          setAssignedTo={
+            setAssignedTo
           }
-        >
 
-          <input
+          priority={priority}
+          setPriority={setPriority}
 
-            type="text"
+          createTask={createTask}
 
-            placeholder="Task Title"
+          isEditing={isEditing}
 
-            value={title}
+          setIsEditing={
+            setIsEditing
+          }
 
-            onChange={(e) =>
-              setTitle(
-                e.target.value
-              )
-            }
+          setEditingTask={
+            setEditingTask
+          }
+        />
 
-            required
+        <AnalyticsChart
+          chartData={chartData}
+          COLORS={COLORS}
+        />
 
-            style={{
+        <UploadSection
+          setSelectedFile={
+            setSelectedFile
+          }
 
-              width: "100%",
+          uploadFile={uploadFile}
+        />
 
-              padding:
-                "12px",
+        {loading ? (
 
-              marginBottom:
-                "15px",
-
-              borderRadius:
-                "8px",
-
-              border:
-                "1px solid #ccc",
-
-            }}
-          />
-
-          <input
-
-            type="date"
-
-            value={dueDate}
-
-            onChange={(e) =>
-              setDueDate(
-                e.target.value
-              )
-            }
-
-            required
-
-            style={{
-
-              width: "100%",
-
-              padding:
-                "12px",
-
-              marginBottom:
-                "15px",
-
-              borderRadius:
-                "8px",
-
-              border:
-                "1px solid #ccc",
-
-            }}
-          />
-
-          <select
-
-            value={priority}
-
-            onChange={(e) =>
-              setPriority(
-                e.target.value
-              )
-            }
-
-            style={{
-
-              width: "100%",
-
-              padding:
-                "12px",
-
-              marginBottom:
-                "15px",
-
-              borderRadius:
-                "8px",
-
-            }}
-          >
-
-            <option>
-              Low
-            </option>
-
-            <option>
-              Medium
-            </option>
-
-            <option>
-              High
-            </option>
-
-          </select>
-
-          <button
-
-            type="submit"
-
-            style={{
-
-              width: "100%",
-
-              padding:
-                "12px",
-
-              background:
-                "#16a34a",
-
-              color: "white",
-
-              border: "none",
-
-              borderRadius:
-                "8px",
-
-              cursor: "pointer",
-
-              fontWeight:
-                "bold",
-
-            }}
-          >
-
-            Create Task
-
-          </button>
-
-        </form>
-
-      </div>
-
-      <div style={{
-
-        background:
-          darkMode
-            ? "#1f2937"
-            : "white",
-
-        padding: "25px",
-
-        borderRadius:
-          "15px",
-
-        boxShadow:
-          "0 0 10px rgba(0,0,0,0.1)",
-
-      }}>
-
-        <h2 style={{
-
-          marginBottom:
-            "20px",
-
-          color:
-            darkMode
-              ? "#f9fafb"
-              : "#111827",
-
-        }}>
-
-          Your Tasks
-
-        </h2>
-
-        {tasks.length === 0 ? (
-
-          <p style={{
-
-            color:
+          <div style={{
+            background:
               darkMode
-                ? "#d1d5db"
-                : "#4b5563",
+                ? "#1e293b"
+                : "white",
 
+            padding: "30px",
+
+            borderRadius: "20px",
+
+            textAlign: "center",
+
+            fontSize: "20px"
           }}>
 
-            Create your new tasks.
+            Loading Tasks...
 
-          </p>
+          </div>
+
+        ) : error ? (
+
+          <div style={{
+            background:
+              darkMode
+                ? "#1e293b"
+                : "white",
+
+            padding: "30px",
+
+            borderRadius: "20px",
+
+            textAlign: "center",
+
+            color: "red",
+
+            fontSize: "20px"
+          }}>
+
+            {error}
+
+          </div>
 
         ) : (
 
-          tasks.map((task) => (
+          <>
+            <TaskTable
+              tasks={filteredTasks}
 
-            <div
+              updateTaskStatus={
+                updateTaskStatus
+              }
 
-              key={task._id}
+              deleteTask={deleteTask}
 
-              style={{
+              editTask={editTask}
+            />
 
-                display: "flex",
-
-                justifyContent:
-                  "space-between",
-
-                alignItems:
-                  "center",
-
-                padding:
-                  "15px",
-
-                marginBottom:
-                  "15px",
-
-                borderRadius:
-                  "10px",
-
-                background:
-                  darkMode
-                    ? "#374151"
-                    : "#f9fafb",
-
-              }}
-            >
-
-              <div>
-
-                <h3 style={{
-
-                  color:
-                    darkMode
-                      ? "#f9fafb"
-                      : "#111827",
-
-                }}>
-
-                  {task.title}
-
-                </h3>
-
-                <p style={{
-
-                  color:
-                    darkMode
-                      ? "#d1d5db"
-                      : "#4b5563",
-
-                }}>
-
-                  Due:
-                  {" "}
-                  {new Date(
-                    task.dueDate
-                  ).toLocaleDateString()}
-
-                </p>
-
-                <p style={{
-
-                  color:
-                    darkMode
-                      ? "#d1d5db"
-                      : "#4b5563",
-
-                }}>
-
-                  Priority:
-                  {" "}
-                  {task.priority}
-
-                </p>
-
-              </div>
-
-              <div>
-
-                <select
-
-                  value={
-                    task.status
-                  }
-
-                  onChange={(e) =>
-                    handleStatusChange(
-
-                      task._id,
-
-                      e.target.value
-
-                    )
-                  }
-
-                  style={{
-
-                    padding:
-                      "8px",
-
-                    borderRadius:
-                      "8px",
-
-                    marginRight:
-                      "10px",
-
-                  }}
-                >
-
-                  <option>
-                    Pending
-                  </option>
-
-                  <option>
-                    Completed
-                  </option>
-
-                </select>
-
-                <button
-
-                  onClick={() =>
-                    handleDelete(
-                      task._id
-                    )
-                  }
-
-                  style={{
-
-                    padding:
-                      "8px 12px",
-
-                    background:
-                      "#dc2626",
-
-                    color:
-                      "white",
-
-                    border:
-                      "none",
-
-                    borderRadius:
-                      "8px",
-
-                    cursor:
-                      "pointer",
-
-                  }}
-                >
-
-                  Delete
-
-                </button>
-
-              </div>
-
-            </div>
-
-          ))
+            <RecentActivity
+              tasks={tasks}
+            />
+          </>
 
         )}
 

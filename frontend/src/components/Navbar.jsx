@@ -43,14 +43,27 @@ function Navbar({
       <div>
 
         <h1 style={{
+
           fontSize: "40px",
-          marginBottom: "10px"
+
+          marginBottom: "10px",
+
+          color:
+            darkMode
+              ? "#f8fafc"
+              : "#111827"
+
         }}>
           Welcome Back
         </h1>
 
         <p style={{
-          color: "gray"
+
+          color:
+            darkMode
+              ? "#d1d5db"
+              : "#374151"
+
         }}>
           Monitor your compliance activities
         </p>
